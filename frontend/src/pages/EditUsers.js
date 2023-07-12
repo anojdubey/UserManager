@@ -1,35 +1,52 @@
-import { Button, FormControl, TextField } from "@mui/material";
-import React from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { Box, Button, FormControl, TextField } from "@mui/material";
+import React, { useState } from "react";
+import {useSelector } from "react-redux";
 
 export default function EditUsers() {
   const manage = useSelector((state) => state.user.manage);
   const editUserData = useSelector((state) => state.user.editUserData);
-  const [name, setName] = React.useState(
+  const [name, setName] = useState(
     manage === "edituser" ? editUserData.name : ""
   );
-  const [email, setEmail] = React.useState(
+  const [email, setEmail] = useState(
     manage === "edituser" ? editUserData.email : ""
   );
-  const [phone, setPhone] = React.useState(
+  const [phone, setPhone] = useState(
     manage === "edituser" ? editUserData.phone : ""
   );
-  console.log(manage);
+  const [pic, setPic] = useState(manage === "edituser" ? editUserData.pic : null);
+  const [previewURL, setPreviewURL] = useState(null);
+  const base64String = editUserData?.pic?.data
+  ? encodeUint8ArrayToBase64(editUserData.pic.data)
+  : '';
+
+// Helper function to encode Uint8Array to base64 in chunks
+function encodeUint8ArrayToBase64(uint8Array) {
+  const CHUNK_SIZE = 8192; // Define the chunk size as per your requirement
+  let base64String = '';
+  let offset = 0;
+
+  while (offset < uint8Array.length) {
+    const chunk = Array.from(uint8Array.slice(offset, offset + CHUNK_SIZE));
+    base64String += String.fromCharCode(...chunk);
+    offset += CHUNK_SIZE;
+  }
+
+  return btoa(base64String);
+}
+
   const handleSubmitEdit = async (e) => {
     e.preventDefault();
-    const data = {
-      name,
-      email,
-      phone,
-    };
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("email", email);
+    formData.append("phone", phone);
+    formData.append("pic", pic);
     const response = await fetch(
       `${process.env.REACT_APP_API_URL}/${editUserData._id}`,
       {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
+        body: formData,
       }
     );
     const res = await response.json();
@@ -38,21 +55,33 @@ export default function EditUsers() {
 
   const handleSubmitAdd = async (e) => {
     e.preventDefault();
-    const data = {
-      name,
-      email,
-      phone,
-    };
+    const formData = new FormData(); // Create a FormData object
+    formData.append("name", name);
+    formData.append("email", email);
+    formData.append("phone", phone);
+    formData.append("pic", pic);
+
     const response = await fetch(process.env.REACT_APP_API_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
+      body: formData,
     });
     const res = await response.json();
     alert(res.message);
   };
+
+  const handleFileRead = (event) => {
+    const file = event.target.files[0];
+    setPic(file);
+    console.log(file);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPreviewURL(reader.result);
+    };
+    reader.readAsDataURL(file);
+    console.log(previewURL);
+  };
+
   return (
     <div
       style={{
@@ -102,6 +131,45 @@ export default function EditUsers() {
               color="secondary"
               placeholder="Mobile"
             />
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: 2,
+                gap: 2,
+                marginTop: 2,
+              }}
+            >
+              {manage === "edituser" && !previewURL && (
+                <img
+                  style={{ height: 80, width: 80, borderRadius: "50%" }}
+                  src={`data:image/jpeg;base64,${base64String}`}
+                  alt="Preview"
+                />
+              )}
+              {previewURL && (
+                <img
+                  style={{ height: 80, width: 80, borderRadius: "50%" }}
+                  src={previewURL}
+                  alt="Preview"
+                />
+              )}
+              <TextField
+                id="originalFileName"
+                type="file"
+                inputProps={{
+                  accept:
+                    "image/*, .xlsx, .xls, .csv, .pdf, .pptx, .pptm, .ppt",
+                }}
+                required = {manage === "adduser" ? true : false}
+                label="Document"
+                name="originalFileName"
+                onChange={handleFileRead}
+                size="small"
+                variant="standard"
+              />
+            </Box>
             <Button
               sx={{
                 textTransform: "none",
